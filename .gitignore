@@ -1,0 +1,8 @@
+*.sql.gz
+.env
+traefik.toml
+traefik.dev.toml
+traefik.log
+*.swp
+.transip.key
+acme.json

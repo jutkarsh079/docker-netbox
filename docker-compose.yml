@@ -53,11 +53,11 @@ services:
       - default
       - web
     labels:
-      - "traefik.backend=netbox-nginx"
-      - "traefik.docker.network=web"
-      - "traefik.enable=true"
-      - "traefik.port=8080"
-      - ${NETBOX_URL_CONFIG:-traefik.frontend.rule=Host:netbox.naturalis.nl}
+      - traefik.enable=${TRAEFIK_ENABLE:-true}
+      - traefik.http.routers.netbox.entrypoints=https
+      - traefik.http.routers.netbox.tls.certresolver=${TRAEFIK_CERT_RESOLVER:-default}
+      - traefik.http.routers.netbox.tls=true
+      - traefik.http.routers.netbox.rule=${NETBOX_URL_CONFIG:-Host(`netbox.naturalis.nl`)}
 
   postgres:
     image: postgres:10.4-alpine
@@ -78,25 +78,20 @@ services:
       - ${BASE_PATH:-/data}/redis:/data
 
   traefik:
-    image: traefik:1.7.12
+    image: traefik:2.0.1
+    container_name: traefik
     restart: unless-stopped
-    environment:
-      - TRANSIP_PRIVATE_KEY_PATH=/.transip.key
-      - TRANSIP_ACCOUNT_NAME=${TRANSIP_ACCOUNT_NAME:-naturalis}
     ports:
       - 80:80
       - 443:443
       - 8081:8080
     networks:
-      - web
       - default
+      - web
+    logging: *default-logging
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - ${TRAEFIK_TOML_FILE:-./traefik.toml}:/traefik.toml
-      - ./.transip.key:/.transip.key
-      - ./acme.json:/acme.json
-    logging: *default-logging
-
+      - ./traefik:/etc/traefik
 
 volumes:
   netbox-static-files:

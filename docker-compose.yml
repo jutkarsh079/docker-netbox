@@ -54,6 +54,7 @@ services:
       - web
     labels:
       - traefik.enable=${TRAEFIK_ENABLE:-true}
+      - traefik.http.services.netbox.loadbalancer.server.port=8080
       - traefik.http.routers.netbox.entrypoints=https
       - traefik.http.routers.netbox.tls.certresolver=${TRAEFIK_CERT_RESOLVER:-default}
       - traefik.http.routers.netbox.tls=true

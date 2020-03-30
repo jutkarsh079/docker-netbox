@@ -1,30 +1,30 @@
-from dcim.models import Site, RackRole, Rack, RackGroup
-from tenancy.models import Tenant
+from dcim.models import Site
+from virtualization.models import Cluster, ClusterType, ClusterGroup
 from extras.models import CustomField, CustomFieldValue
 from ruamel.yaml import YAML
+
 from pathlib import Path
 import sys
 
-file = Path('/opt/netbox/initializers/racks.yml')
+file = Path('/opt/netbox/initializers/clusters.yml')
 if not file.is_file():
   sys.exit()
 
 with file.open('r') as stream:
   yaml = YAML(typ='safe')
-  racks = yaml.load(stream)
+  clusters = yaml.load(stream)
 
   required_assocs = {
-    'site': (Site, 'name')
+    'type': (ClusterType, 'name')
   }
 
   optional_assocs = {
-    'role': (RackRole, 'name'),
-    'tenant': (Tenant, 'name'),
-    'group': (RackGroup, 'name')
+    'site': (Site, 'name'),
+    'group': (ClusterGroup, 'name')
   }
 
-  if racks is not None:
-    for params in racks:
+  if clusters is not None:
+    for params in clusters:
       custom_fields = params.pop('custom_fields', None)
 
       for assoc, details in required_assocs.items():
@@ -40,7 +40,7 @@ with file.open('r') as stream:
 
           params[assoc] = model.objects.get(**query)
 
-      rack, created = Rack.objects.get_or_create(**params)
+      cluster, created = Cluster.objects.get_or_create(**params)
 
       if created:
         if custom_fields is not None:
@@ -48,10 +48,10 @@ with file.open('r') as stream:
             custom_field = CustomField.objects.get(name=cf_name)
             custom_field_value = CustomFieldValue.objects.create(
               field=custom_field,
-              obj=rack,
+              obj=cluster,
               value=cf_value
             )
 
-            rack.custom_field_values.add(custom_field_value)
+            cluster.custom_field_values.add(custom_field_value)
 
-        print("🔳 Created rack", rack.site, rack.name)
+        print("🗄️ Created cluster", cluster.name)

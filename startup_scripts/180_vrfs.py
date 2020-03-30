@@ -1,37 +1,26 @@
-from dcim.models import Site, RackRole, Rack, RackGroup
+from ipam.models import VRF
 from tenancy.models import Tenant
-from extras.models import CustomField, CustomFieldValue
 from ruamel.yaml import YAML
+from extras.models import CustomField, CustomFieldValue
+
 from pathlib import Path
 import sys
 
-file = Path('/opt/netbox/initializers/racks.yml')
+file = Path('/opt/netbox/initializers/vrfs.yml')
 if not file.is_file():
   sys.exit()
 
 with file.open('r') as stream:
   yaml = YAML(typ='safe')
-  racks = yaml.load(stream)
-
-  required_assocs = {
-    'site': (Site, 'name')
-  }
+  vrfs = yaml.load(stream)
 
   optional_assocs = {
-    'role': (RackRole, 'name'),
-    'tenant': (Tenant, 'name'),
-    'group': (RackGroup, 'name')
+    'tenant': (Tenant, 'name')
   }
 
-  if racks is not None:
-    for params in racks:
+  if vrfs is not None:
+    for params in vrfs:
       custom_fields = params.pop('custom_fields', None)
-
-      for assoc, details in required_assocs.items():
-        model, field = details
-        query = { field: params.pop(assoc) }
-
-        params[assoc] = model.objects.get(**query)
 
       for assoc, details in optional_assocs.items():
         if assoc in params:
@@ -40,7 +29,7 @@ with file.open('r') as stream:
 
           params[assoc] = model.objects.get(**query)
 
-      rack, created = Rack.objects.get_or_create(**params)
+      vrf, created = VRF.objects.get_or_create(**params)
 
       if created:
         if custom_fields is not None:
@@ -48,10 +37,10 @@ with file.open('r') as stream:
             custom_field = CustomField.objects.get(name=cf_name)
             custom_field_value = CustomFieldValue.objects.create(
               field=custom_field,
-              obj=rack,
+              obj=vrf,
               value=cf_value
             )
 
-            rack.custom_field_values.add(custom_field_value)
+            vrf.custom_field_values.add(custom_field_value)
 
-        print("🔳 Created rack", rack.site, rack.name)
+        print("📦 Created VRF", vrf.name)

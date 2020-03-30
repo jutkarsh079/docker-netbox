@@ -1,37 +1,34 @@
-from dcim.models import Site, RackRole, Rack, RackGroup
-from tenancy.models import Tenant
+from dcim.models import Site
+from ipam.models import Prefix, VLAN, Role, VRF
+from tenancy.models import Tenant, TenantGroup
 from extras.models import CustomField, CustomFieldValue
 from ruamel.yaml import YAML
+
+from netaddr import IPNetwork
 from pathlib import Path
 import sys
 
-file = Path('/opt/netbox/initializers/racks.yml')
+file = Path('/opt/netbox/initializers/prefixes.yml')
 if not file.is_file():
   sys.exit()
 
 with file.open('r') as stream:
   yaml = YAML(typ='safe')
-  racks = yaml.load(stream)
-
-  required_assocs = {
-    'site': (Site, 'name')
-  }
+  prefixes = yaml.load(stream)
 
   optional_assocs = {
-    'role': (RackRole, 'name'),
+    'site': (Site, 'name'),
     'tenant': (Tenant, 'name'),
-    'group': (RackGroup, 'name')
+    'tenant_group': (TenantGroup, 'name'),
+    'vlan': (VLAN, 'name'),
+    'role': (Role, 'name'),
+    'vrf': (VRF, 'name')
   }
 
-  if racks is not None:
-    for params in racks:
+  if prefixes is not None:
+    for params in prefixes:
       custom_fields = params.pop('custom_fields', None)
-
-      for assoc, details in required_assocs.items():
-        model, field = details
-        query = { field: params.pop(assoc) }
-
-        params[assoc] = model.objects.get(**query)
+      params['prefix'] = IPNetwork(params['prefix'])
 
       for assoc, details in optional_assocs.items():
         if assoc in params:
@@ -40,7 +37,7 @@ with file.open('r') as stream:
 
           params[assoc] = model.objects.get(**query)
 
-      rack, created = Rack.objects.get_or_create(**params)
+      prefix, created = Prefix.objects.get_or_create(**params)
 
       if created:
         if custom_fields is not None:
@@ -48,10 +45,10 @@ with file.open('r') as stream:
             custom_field = CustomField.objects.get(name=cf_name)
             custom_field_value = CustomFieldValue.objects.create(
               field=custom_field,
-              obj=rack,
+              obj=prefix,
               value=cf_value
             )
 
-            rack.custom_field_values.add(custom_field_value)
+            prefix.custom_field_values.add(custom_field_value)
 
-        print("🔳 Created rack", rack.site, rack.name)
+        print("📌 Created Prefix", prefix.prefix)

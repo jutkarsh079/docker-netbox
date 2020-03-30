@@ -1,30 +1,24 @@
-from dcim.models import Site, RackRole, Rack, RackGroup
-from tenancy.models import Tenant
+from dcim.models import Interface, Device
 from extras.models import CustomField, CustomFieldValue
 from ruamel.yaml import YAML
+
 from pathlib import Path
 import sys
 
-file = Path('/opt/netbox/initializers/racks.yml')
+file = Path('/opt/netbox/initializers/dcim_interfaces.yml')
 if not file.is_file():
   sys.exit()
 
 with file.open('r') as stream:
   yaml = YAML(typ='safe')
-  racks = yaml.load(stream)
+  interfaces = yaml.load(stream)
 
   required_assocs = {
-    'site': (Site, 'name')
+    'device': (Device, 'name')
   }
 
-  optional_assocs = {
-    'role': (RackRole, 'name'),
-    'tenant': (Tenant, 'name'),
-    'group': (RackGroup, 'name')
-  }
-
-  if racks is not None:
-    for params in racks:
+  if interfaces is not None:
+    for params in interfaces:
       custom_fields = params.pop('custom_fields', None)
 
       for assoc, details in required_assocs.items():
@@ -33,14 +27,7 @@ with file.open('r') as stream:
 
         params[assoc] = model.objects.get(**query)
 
-      for assoc, details in optional_assocs.items():
-        if assoc in params:
-          model, field = details
-          query = { field: params.pop(assoc) }
-
-          params[assoc] = model.objects.get(**query)
-
-      rack, created = Rack.objects.get_or_create(**params)
+      interface, created = Interface.objects.get_or_create(**params)
 
       if created:
         if custom_fields is not None:
@@ -48,10 +35,10 @@ with file.open('r') as stream:
             custom_field = CustomField.objects.get(name=cf_name)
             custom_field_value = CustomFieldValue.objects.create(
               field=custom_field,
-              obj=rack,
+              obj=interface,
               value=cf_value
             )
 
-            rack.custom_field_values.add(custom_field_value)
+            interface.custom_field_values.add(custom_field_value)
 
-        print("🔳 Created rack", rack.site, rack.name)
+        print("🧷 Created interface", interface.name, interface.device.name)

@@ -1,37 +1,26 @@
-from dcim.models import Site, RackRole, Rack, RackGroup
-from tenancy.models import Tenant
+from dcim.models import Site
+from ipam.models import VLANGroup
 from extras.models import CustomField, CustomFieldValue
 from ruamel.yaml import YAML
+
 from pathlib import Path
 import sys
 
-file = Path('/opt/netbox/initializers/racks.yml')
+file = Path('/opt/netbox/initializers/vlan_groups.yml')
 if not file.is_file():
   sys.exit()
 
 with file.open('r') as stream:
   yaml = YAML(typ='safe')
-  racks = yaml.load(stream)
+  vlan_groups = yaml.load(stream)
 
-  required_assocs = {
+  optional_assocs = {
     'site': (Site, 'name')
   }
 
-  optional_assocs = {
-    'role': (RackRole, 'name'),
-    'tenant': (Tenant, 'name'),
-    'group': (RackGroup, 'name')
-  }
-
-  if racks is not None:
-    for params in racks:
+  if vlan_groups is not None:
+    for params in vlan_groups:
       custom_fields = params.pop('custom_fields', None)
-
-      for assoc, details in required_assocs.items():
-        model, field = details
-        query = { field: params.pop(assoc) }
-
-        params[assoc] = model.objects.get(**query)
 
       for assoc, details in optional_assocs.items():
         if assoc in params:
@@ -40,7 +29,7 @@ with file.open('r') as stream:
 
           params[assoc] = model.objects.get(**query)
 
-      rack, created = Rack.objects.get_or_create(**params)
+      vlan_group, created = VLANGroup.objects.get_or_create(**params)
 
       if created:
         if custom_fields is not None:
@@ -48,10 +37,10 @@ with file.open('r') as stream:
             custom_field = CustomField.objects.get(name=cf_name)
             custom_field_value = CustomFieldValue.objects.create(
               field=custom_field,
-              obj=rack,
+              obj=vlan_group,
               value=cf_value
             )
 
-            rack.custom_field_values.add(custom_field_value)
+            vlan_group.custom_field_values.add(custom_field_value)
 
-        print("🔳 Created rack", rack.site, rack.name)
+        print("🏘️ Created VLAN Group", vlan_group.name)
